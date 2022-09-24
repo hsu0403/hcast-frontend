@@ -1,83 +1,97 @@
-import { gql, useMutation } from "@apollo/client";
+import { gql, useApolloClient, useMutation } from "@apollo/client";
 import { Helmet } from "react-helmet-async";
 import { useForm } from "react-hook-form";
-import { Link, useLocation } from "react-router-dom";
-import { authToken, isLoggedInVar } from "../apollo";
+import { Link } from "react-router-dom";
 import { Button } from "../components/button";
 import { FormError } from "../components/form-error";
-import { LOCALSTORAGE_TOKEN } from "../constants";
-import { LoginInput, loginMutation, loginMutationVariables } from "../mytypes";
+import {
+  EditProfileInput,
+  editProfileMutation,
+  editProfileMutationVariables,
+} from "../mytypes";
 
-const LOGIN_MUTATION = gql`
-  mutation loginMutation($input: LoginInput!) {
-    login(input: $input) {
+const EDIT_PROFILE_MUTATION = gql`
+  mutation editProfileMutation($input: EditProfileInput!) {
+    editProfile(input: $input) {
       ok
       error
-      token
     }
   }
 `;
 
-export const Login = () => {
-  const { state } = useLocation();
+interface IEditProfileProps {
+  email: string;
+  id: number;
+}
+
+export const EditProfile: React.FC<IEditProfileProps> = ({ email, id }) => {
+  const client = useApolloClient();
   const {
     register,
-    getValues,
     handleSubmit,
+    getValues,
     formState: { errors, isValid },
-  } = useForm<LoginInput>({
+  } = useForm<EditProfileInput>({
     mode: "onChange",
     defaultValues: {
-      email: state ? state.email : "",
-      password: state ? state.password : "",
+      email,
     },
   });
-
-  const onCompleted = (data: loginMutation) => {
+  const onCompleted = (data: editProfileMutation) => {
     const {
-      login: { ok, token },
+      editProfile: { ok },
     } = data;
-    if (ok && token) {
-      localStorage.setItem(LOCALSTORAGE_TOKEN, token);
-      authToken(token);
-      isLoggedInVar(true);
+    if (ok) {
+      alert("Profile Edit Successful!");
+      const { email: newEmail } = getValues();
+      if (email !== newEmail) {
+        client.writeFragment({
+          id: `User:${id}`,
+          fragment: gql`
+            fragment EditedUser on User {
+              email
+              emailVerified
+            }
+          `,
+          data: {
+            email: newEmail,
+            emailVerified: false,
+          },
+        });
+      }
     }
   };
-
-  const [loginMutation, { loading, data: loginMutaionResult }] = useMutation<
-    loginMutation,
-    loginMutationVariables
-  >(LOGIN_MUTATION, {
-    onCompleted,
-  });
-
+  const [editProfileMutation, { loading, data: editProfileMutationResult }] =
+    useMutation<editProfileMutation, editProfileMutationVariables>(
+      EDIT_PROFILE_MUTATION,
+      { onCompleted }
+    );
   const onSubmit = () => {
     const { email, password } = getValues();
     if (!loading) {
-      loginMutation({
+      editProfileMutation({
         variables: {
           input: {
             email,
-            password,
+            ...(password !== "" && { password }),
           },
         },
       });
     }
   };
-
   return (
     <>
-      <Helmet>
-        <title>{`Login | Hcast`}</title>
-      </Helmet>
       <div className="h-screen flex items-center justify-center bg-gray-800">
-        <div className="bg-black overflow-hidden w-full max-w-lg h-[460px] rounded-md relative before:absolute before:w-full before:max-w-lg before:h-[460px] before:bg-gradient-to-t before:from-transparent before:via-cyan-300 before:to-cyan-300 before:top-[-50%] before:left-[-50%] before:origin-bottom-right before:animate-line-animation after:absolute after:w-full after:max-w-lg after:h-[460px] after:bg-gradient-to-t after:from-transparent after:via-cyan-300 after:to-cyan-300 after:top-[-50%] after:left-[-50%] after:origin-bottom-right after:animate-line-animation after:animation-delay-10">
+        <Helmet>
+          <title>{`Edit Profile | Hcast`}</title>
+        </Helmet>
+        <div className="bg-black overflow-hidden w-full max-w-lg h-[490px] rounded-md relative before:absolute before:w-full before:max-w-lg before:h-[490px] before:bg-gradient-to-t before:from-transparent before:via-cyan-300 before:to-cyan-300 before:top-[-50%] before:left-[-50%] before:origin-bottom-right before:animate-line-animation after:absolute after:w-full after:max-w-lg after:h-[490px] after:bg-gradient-to-t after:from-transparent after:via-cyan-300 after:to-cyan-300 after:top-[-50%] after:left-[-50%] after:origin-bottom-right after:animate-line-animation after:animation-delay-10">
           <form
             onSubmit={handleSubmit(onSubmit)}
             className="flex flex-col px-10 py-8 absolute z-10 inset-1 bg-black rounded-md"
           >
             <h2 className="text-cyan-300 mb-10 text-3xl font-medium text-center tracking-widest">
-              Welcome
+              Edit Profile
             </h2>
             <div className="relative mb-14">
               <input
@@ -106,9 +120,7 @@ export const Login = () => {
             )}
             <div className="relative mb-8">
               <input
-                required
                 {...register("password", {
-                  required: "Password is required.",
                   minLength: 8,
                 })}
                 type="password"
@@ -120,35 +132,18 @@ export const Login = () => {
               </span>
               <i className="absolute left-0 bottom-0 w-full h-[2px] bg-cyan-400 rounded-md transition-all pointer-events-none z-[9] peer-focus:h-[48px]"></i>
             </div>
-            {errors.password?.message && (
-              <div className="-mt-6">
-                <FormError errorMessage={errors.password.message} />
-              </div>
-            )}
             {errors.password?.type === "minLength" && (
               <div className="-mt-6">
                 <FormError errorMessage="The password must be at least 8 digits." />
               </div>
             )}
-            <div className="flex justify-between my-3">
-              <Link
-                className="text-gray-400 hover:text-cyan-400 hover:underline"
-                to="/forgot-password"
-              >
-                &larr; Forgot Password
-              </Link>
-              <Link
-                className="text-cyan-300 hover:text-cyan-400 hover:underline transition-all"
-                to="/signup"
-              >
-                Create an Account &rarr;
-              </Link>
-            </div>
-
-            <Button canClick={isValid} loading={loading} actionText="Log In" />
-            {loginMutaionResult?.login.error && (
+            <div className="mb-8"></div>
+            <Button canClick={isValid} loading={loading} actionText="Edit" />
+            {editProfileMutationResult?.editProfile.error && (
               <div className="mt-2">
-                <FormError errorMessage={loginMutaionResult.login.error} />
+                <FormError
+                  errorMessage={editProfileMutationResult.editProfile.error}
+                />
               </div>
             )}
           </form>
