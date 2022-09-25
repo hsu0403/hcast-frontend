@@ -38,6 +38,7 @@ export const Header: React.FC<IHeaderProps> = ({
     localStorage.removeItem(LOCALSTORAGE_TOKEN);
     authToken(null);
     isLoggedInVar(false);
+    window.location.reload();
   };
   const { register, getValues, handleSubmit } = useForm<IFormProp>();
   const onSearchSubmit = () => {

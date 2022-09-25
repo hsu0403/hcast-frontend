@@ -13,7 +13,10 @@ export const isLoggedInVar = makeVar(Boolean(token));
 export const authToken = makeVar(token);
 
 const httpLink = createHttpLink({
-  uri: "http://localhost:4000/graphql",
+  uri:
+    process.env.NODE_ENV === "production"
+      ? "https://hcast-backend.herokuapp.com/graphql"
+      : "http://localhost:4000/graphql",
 });
 
 const authLink = setContext((_, { headers }) => {

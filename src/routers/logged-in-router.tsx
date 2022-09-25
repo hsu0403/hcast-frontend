@@ -42,7 +42,6 @@ const commonRoutes = [
 
 export const LoggedInRouter = () => {
   const { data, loading, error } = useMe();
-  console.log(data);
   if (!data || loading || error) {
     return <Loading />;
   }
